@@ -1,0 +1,63 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    // ✅ AGP 8+ expects namespace here (NOT in AndroidManifest.xml)
+    namespace "com.cropwise.app"
+
+    // Keep these from Flutter's toolchain
+    compileSdk flutter.compileSdkVersion
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    defaultConfig {
+        // ✅ Your final app id (what users see)
+        applicationId "com.cropwise.app"
+
+        // ✅ Use the Flutter-provided versions; do not duplicate with minSdkVersion
+        minSdk flutter.minSdkVersion
+        targetSdk flutter.targetSdkVersion
+
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+
+        multiDexEnabled true
+        // 🚫 REMOVE this line (it duplicates minSdk and can cause confusion):
+        // minSdkVersion flutter.minSdkVersion
+    }
+
+    buildTypes {
+        release {
+            // Keep simple for now; you can enable these later
+            minifyEnabled false
+            shrinkResources false
+
+            // Sign with debug for quick testing; switch to a real keystore for production
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
+    implementation "androidx.multidex:multidex:2.0.1"
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.concurrent:concurrent-futures:1.1.0'
+}
