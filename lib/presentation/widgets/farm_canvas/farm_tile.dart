@@ -1,5 +1,11 @@
 // lib/presentation/widgets/farm_canvas/farm_tile.dart
 import 'package:flutter/material.dart';
+
+// Adjust import path if your project uses different package name
+import 'package:cropwise/presentation/widgets/farm_canvas/iso_tile_3d_simple.dart';
+
+// Import your models file that defines FarmTile, TileStage, etc.
+// Adjust the path if needed in your project.
 import 'models.dart';
 
 typedef TileCallback = void Function(FarmTile tile);
@@ -23,6 +29,7 @@ class FarmTileView extends StatefulWidget {
 }
 
 class _FarmTileViewState extends State<FarmTileView> with SingleTickerProviderStateMixin {
+  // Keep a small controller to use if you still want a pulse in parent
   late final AnimationController _ctrl;
   late final Animation<double> _pulse;
 
@@ -36,17 +43,19 @@ class _FarmTileViewState extends State<FarmTileView> with SingleTickerProviderSt
     _pulse = Tween<double>(begin: 0.96, end: 1.04).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
-    if (widget.tile.isEmpty) {
+    if (_isEmpty) {
       _ctrl.repeat(reverse: true);
     }
   }
 
+  bool get _isEmpty => widget.tile.isEmpty;
+
   @override
   void didUpdateWidget(covariant FarmTileView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.tile.isEmpty && !_ctrl.isAnimating) {
+    if (_isEmpty && !_ctrl.isAnimating) {
       _ctrl.repeat(reverse: true);
-    } else if (!widget.tile.isEmpty && _ctrl.isAnimating) {
+    } else if (!_isEmpty && _ctrl.isAnimating) {
       _ctrl.stop();
     }
   }
@@ -57,11 +66,36 @@ class _FarmTileViewState extends State<FarmTileView> with SingleTickerProviderSt
     super.dispose();
   }
 
+  String get _label {
+    final crop = widget.tile.crop;
+    try {
+      final label = crop?.label;
+      if (label != null && label.isNotEmpty) return label;
+    } catch (_) {}
+    // fallback to stringified crop or "Empty"
+    return widget.tile.crop?.toString() ?? 'Empty';
+  }
+
+  String? get _emoji {
+    final crop = widget.tile.crop;
+    try {
+      final e = crop?.emoji;
+      if (e != null && e.isNotEmpty) return e;
+    } catch (_) {}
+    return null;
+  }
+
+  bool get _isGrowing {
+    try {
+      return widget.tile.stage == TileStage.growing;
+    } catch (_) {
+      return widget.tile.crop != null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final tile = widget.tile;
-    final s = widget.size;
-    final borderRadius = BorderRadius.circular(6);
+    final double s = widget.size.clamp(48.0, 360.0);
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -70,144 +104,14 @@ class _FarmTileViewState extends State<FarmTileView> with SingleTickerProviderSt
       child: SizedBox(
         width: s,
         height: s,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(
-            color: _backgroundColor(context, tile),
-            borderRadius: borderRadius,
-            border: Border.all(
-              color: _borderColor(context, tile),
-              width: tile.isEmpty ? 1.0 : 1.2,
-            ),
-            boxShadow: tile.isEmpty
-                ? []
-                : [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
-          child: Stack(
-            children: [
-              // If planted: show small crop icon / emoji + label
-              if (!tile.isEmpty) _plantedContent(tile, s),
-
-              // If empty: ghost '+' with subtle animation
-              if (tile.isEmpty) _emptyGhost(s),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _backgroundColor(BuildContext context, FarmTile tile) {
-    final surface = Theme.of(context).colorScheme.surface;
-    if (tile.isEmpty) return surface;
-    // planted: lightly tinted based on stage
-    switch (tile.stage) {
-      case TileStage.sown:
-        return surface.withOpacity(0.98);
-      case TileStage.growing:
-        return Colors.green.withOpacity(0.04);
-      case TileStage.harvest:
-        return Colors.orange.withOpacity(0.04);
-      default:
-        return surface;
-    }
-  }
-
-  Color _borderColor(BuildContext context, FarmTile tile) {
-    if (tile.isEmpty) {
-      return Theme.of(context).dividerColor.withOpacity(0.8);
-    }
-    // planted border strength depends on density
-    final density = tile.density ?? 1;
-    return density >= 3 ? Colors.green.shade600 : Theme.of(context).dividerColor;
-  }
-
-  Widget _plantedContent(FarmTile tile, double s) {
-    // Keep this consistent with your previous planted visuals;
-    // use emoji label if available, fallback to simple icon.
-    final crop = tile.crop;
-    final emojiOrIcon = crop?.emoji ?? '🌱';
-
-// Some models might not have shortLabel, so safely use label or name
-    final label = (crop?.label ?? crop?.toString() ?? '').toString();
-
-
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Emoji / icon circle
-          Container(
-            width: s * 0.46,
-            height: s * 0.46,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: (tile.stage == TileStage.growing)
-                  ? Colors.white
-                  : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              emojiOrIcon,
-              style: TextStyle(fontSize: s * 0.28),
-            ),
-          ),
-          if (label.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6.0),
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: s * 0.12, fontWeight: FontWeight.w600),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyGhost(double s) {
-    // A translucent "+" with soft border and subtle pulse.
-    return Center(
-      child: ScaleTransition(
-        scale: _pulse,
-        child: Container(
-          width: s * 0.5,
-          height: s * 0.5,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.brown.shade100.withOpacity(0.35),
-                Colors.brown.shade200.withOpacity(0.18),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.brown.shade200.withOpacity(0.6),
-              width: 1.0,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Icon(
-            Icons.add,
-            size: s * 0.28,
-            color: Colors.brown.shade700.withOpacity(0.95),
+        child: ScaleTransition(
+          scale: _pulse,
+          child: IsoTile3DSimple(
+            size: s,
+            cropEmoji: _emoji,
+            label: _label,
+            selected: _isGrowing,
+            onTap: widget.onTap,
           ),
         ),
       ),
