@@ -114,7 +114,11 @@ class _FarmCanvasState extends State<FarmCanvas> {
         onPick: (kind, density) {
           _setTile(field, tile, tile.plant(kind, density: density));
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Planted ${kind.label} ×$density at (${tile.x + 1}, ${tile.y + 1})')),
+            SnackBar(
+              content: Text(
+                'Planted ${kind.label} ×$density at (${tile.x + 1}, ${tile.y + 1})',
+              ),
+            ),
           );
         },
         onOpenSoil: () {
@@ -371,7 +375,8 @@ class _FarmCanvasState extends State<FarmCanvas> {
       children: [
         // Pager of fields
         SizedBox(
-          height: 260,
+          // slightly reduced to avoid RenderFlex overflow by ~1px on small screens
+          height: 250,
           child: PageView.builder(
             controller: _pageCtrl,
             onPageChanged: (i) {
@@ -434,7 +439,9 @@ class _FarmCanvasState extends State<FarmCanvas> {
         const FarmLegend(), // tiny legend row
       ],
     );
-  }
+  }Akshay kerkar
+
+
 }
 
 class _FieldCard extends StatelessWidget {
@@ -482,9 +489,6 @@ class _FieldCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
-            // NOTE:
-            // The decorative grid painter is now provided inside _FieldGrid,
-            // because that widget knows rows/cols/cellSize.
             Positioned(
               left: 12,
               right: 12,
@@ -547,22 +551,30 @@ class _FieldGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final padding = 12.0;
+        const padding = 12.0;
         final w = constraints.maxWidth - padding * 2;
         final h = constraints.maxHeight - padding * 2;
+
+        // tile size & total grid size
         final cellSize = (w / field.cols).clamp(18.0, 40.0);
         final gridWidth = cellSize * field.cols;
         final gridHeight = cellSize * field.rows;
-        final topPad = (h - gridHeight) / 2;
+
+        // center vertically, but never negative (prevents tiny overflow)
+        final rawTopPad = (h - gridHeight) / 2;
+        final safeTopPad = rawTopPad.clamp(0.0, 24.0);
 
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding + topPad),
+          padding: EdgeInsets.symmetric(
+            horizontal: padding,
+            vertical: padding + safeTopPad,
+          ),
           child: SizedBox(
             width: gridWidth,
             height: gridHeight,
             child: Stack(
               children: [
-                // Decorative grid painter (uses rows/cols/cellSize)
+                // Decorative grid painter
                 CustomPaint(
                   size: Size(gridWidth, gridHeight),
                   painter: _LightGridPainter(
@@ -575,7 +587,7 @@ class _FieldGrid extends StatelessWidget {
                   ),
                 ),
 
-                // actual tile grid (on top)
+                // actual tiles
                 _buildGrid(cellSize),
               ],
             ),
@@ -630,15 +642,13 @@ class _FieldGrid extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                // The actual interactive tile
                 FarmTileView(
                   tile: tile,
                   size: cellSize,
                   onTap: () => onTileTap(tile),
-                  onLongPress: onTileLongPress == null ? null : () => onTileLongPress!(tile),
+                  onLongPress:
+                  onTileLongPress == null ? null : () => onTileLongPress!(tile),
                 ),
-
-                // Stage overlay tint
                 if (stageOverlay != null)
                   Positioned.fill(
                     child: IgnorePointer(
@@ -669,8 +679,6 @@ class _FieldGrid extends StatelessWidget {
 
 // ------------------------------
 // Helper: light grid painter
-// Place this at the bottom as a top-level class (NOT nested).
-// It draws a subtle grid / highlight layer used by the field card.
 // ------------------------------
 class _LightGridPainter extends CustomPainter {
   _LightGridPainter({
@@ -696,19 +704,19 @@ class _LightGridPainter extends CustomPainter {
       ..color = color.withOpacity(0.12)
       ..strokeWidth = lineWidth;
 
-    // draw vertical lines
+    // vertical lines
     for (int c = 0; c <= cols; c++) {
       final dx = (c * cellSize).clamp(0.0, size.width);
       canvas.drawLine(Offset(dx, 0), Offset(dx, size.height), paint);
     }
 
-    // draw horizontal lines
+    // horizontal lines
     for (int r = 0; r <= rows; r++) {
       final dy = (r * cellSize).clamp(0.0, size.height);
       canvas.drawLine(Offset(0, dy), Offset(size.width, dy), paint);
     }
 
-    // optional: subtle dots at tile centers (cheap)
+    // optional dots in centers
     if (showDots) {
       final dotPaint = Paint()..color = color.withOpacity(0.08);
       final radius = (cellSize * 0.035).clamp(0.8, 3.0);
