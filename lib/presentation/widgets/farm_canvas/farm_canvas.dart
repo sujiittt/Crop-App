@@ -373,34 +373,68 @@ class _FarmCanvasState extends State<FarmCanvas> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Pager of fields
-        SizedBox(
-          // slightly reduced to avoid RenderFlex overflow by ~1px on small screens
-          height: 250,
-          child: PageView.builder(
-            controller: _pageCtrl,
-            onPageChanged: (i) {
-              setState(() => _current = i);
-              WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowCoachmark());
-            },
-            itemCount: _fields.length,
-            itemBuilder: (_, i) {
-              final field = _fields[i];
-              return _FieldCard(
-                title: field.name,
-                onAdd: _createFieldDialog,
-                onRename: () => _renameFieldDialog(field),
-                onDelete: () => _deleteFieldDialog(field),
-                child: _FieldGrid(
-                  key: i == _current ? _gridKey : null,
-                  field: field,
-                  onTileTap: (t) => _handleTileTap(field, t),
-                  onTileLongPress: (t) => _cycleStage(field, t), // long-press cycles stage
-                ),
-              );
-            },
-          ),
-        ),
+        // ---------------------------
+        // RESPONSIVE Pager of fields
+        // ---------------------------
+        // Instead of a fixed height, compute page height from available width.
+        // ---------- RESPONSIVE Pager of fields (updated small buffer fix) ----------
+        // ---------- RESPONSIVE Pager of fields (Step 3: slightly shorter + extra buffer) ----------
+        LayoutBuilder(builder: (context, constraints) {
+          // available width in parent (full width of Column)
+          final availableW = constraints.maxWidth;
+
+          // Use a slightly smaller visible fraction so page has more horizontal breathing.
+          // This also indirectly reduces the farm height (since farmHeight uses pageVisibleWidth).
+          const double visibleFraction = 0.90;
+          final pageVisibleWidth = availableW * visibleFraction;
+
+          // Increase aspect ratio to make farm area a bit shorter (height = width / ratio).
+          // 4/3 = 1.333; using 1.5 reduces the height by ~11% which should remove a 10px overflow.
+          const double farmAspectRatio = 1.5;
+
+          // compute farm grid height based on visible page width
+          final double farmHeight = pageVisibleWidth / farmAspectRatio;
+
+          // header/top area inside _FieldCard (safe reserve for title row & icons)
+          const double cardHeaderHeight = 52.0;
+
+          // device bottom inset (navigation bar / gesture area)
+          final double bottomInset = MediaQuery.of(context).padding.bottom;
+
+          // increase small buffer for extra safety across devices
+          const double smallBuffer = 18.0;
+
+          // final PageView height = header + farmHeight + device bottom inset + small buffer
+          final double pageViewHeight = cardHeaderHeight + farmHeight + bottomInset + smallBuffer;
+
+          return SizedBox(
+            height: pageViewHeight,
+            child: PageView.builder(
+              controller: _pageCtrl,
+              onPageChanged: (i) {
+                setState(() => _current = i);
+                WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowCoachmark());
+              },
+              itemCount: _fields.length,
+              itemBuilder: (_, i) {
+                final field = _fields[i];
+                return _FieldCard(
+                  title: field.name,
+                  onAdd: _createFieldDialog,
+                  onRename: () => _renameFieldDialog(field),
+                  onDelete: () => _deleteFieldDialog(field),
+                  child: _FieldGrid(
+                    key: i == _current ? _gridKey : null,
+                    field: field,
+                    onTileTap: (t) => _handleTileTap(field, t),
+                    onTileLongPress: (t) => _cycleStage(field, t),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
+
 
         const SizedBox(height: 8),
 
@@ -439,9 +473,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
         const FarmLegend(), // tiny legend row
       ],
     );
-  }Akshay kerkar
-
-
+  }
 }
 
 class _FieldCard extends StatelessWidget {

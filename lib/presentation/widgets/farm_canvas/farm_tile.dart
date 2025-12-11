@@ -50,12 +50,11 @@ class FarmTileView extends StatelessWidget {
         onLongPress: onLongPress,
         child: IsoTile3DSimple(
           size: size,
-          cropEmoji: crop?.emoji,
+          cropEmoji: isEmpty ? null : crop.emoji,
           label: label,
-          isEmpty: _isEmpty,
-          // grow = highlighted state
-          stage: stage,
+          isEmpty: isEmpty,
         ),
+
       ),
     );
   }

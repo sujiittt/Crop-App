@@ -1,199 +1,180 @@
 // lib/presentation/widgets/farm_canvas/iso_tile_3d_simple.dart
 import 'package:flutter/material.dart';
-import 'models.dart';
+import '../../../theme/app_theme.dart';
 
+/// Simple 3D-ish tile used for the farm grid.
+///
+/// - Shows a green land top with soft gradient
+/// - Brown soil block below for depth
+/// - Center circle with crop emoji or "+" for empty tiles
+/// - Label underneath (short crop name or "Empty")
+/// - Smooth highlight when selected
 class IsoTile3DSimple extends StatelessWidget {
   final double size;
   final String? cropEmoji;
   final String label;
   final bool isEmpty;
-  final TileStage? stage;
+
+  /// Optional: highlight state (e.g. current growth stage / selected tile)
+  final bool selected;
+
+  /// Optional: emphasise growing tiles (slightly stronger glow)
+  final bool grow;
+
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const IsoTile3DSimple({
-    super.key,
+    Key? key,
     required this.size,
-    required this.cropEmoji,
     required this.label,
     required this.isEmpty,
-    required this.stage,
-  });
+    this.cropEmoji,
+    this.selected = false,
+    this.grow = false,
+    this.onTap,
+    this.onLongPress,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final Color soilTop = const Color(0xFF9C6A3A);
-    final Color soilSide = const Color(0xFF6A4220);
-    final Color topLight = theme.colorScheme.primary.withOpacity(0.90);
-    final Color topDark = theme.colorScheme.primary.withOpacity(0.75);
+    // Main green & soil colours
+    final Color primary = AppTheme.lightTheme.primaryColor;
+    const Color soilTop = Color(0xFFD9B892); // light brown
+    const Color soilSide = Color(0xFFB1784D); // darker brown
 
-    // Stage ring color
-    Color? ringColor;
-    switch (stage) {
-      case TileStage.sown:
-        ringColor = Colors.brown.withOpacity(0.4);
-        break;
-      case TileStage.growing:
-        ringColor = Colors.green.withOpacity(0.6);
-        break;
-      case TileStage.harvest:
-        ringColor = Colors.orange.withOpacity(0.6);
-        break;
-      default:
-        ringColor = null;
-    }
+    // Shadow / glow strength
+    final double shadowBlur = selected || grow ? 14 : 8;
+    final double shadowOpacity = selected || grow ? 0.30 : 0.18;
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // Soil block (bottom)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: size * 0.78,
-              height: size * 0.32,
+    return GestureDetector(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      behavior: HitTestBehavior.translucent,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            // Soft drop shadow under the whole tile
+            Positioned(
+              bottom: size * 0.06,
+              child: Container(
+                width: size * 0.78,
+                height: size * 0.20,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(size * 0.30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: shadowBlur,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Brown soil "block" (gives the 3D land feeling)
+            Positioned(
+              bottom: size * 0.12,
+              child: Container(
+                width: size * 0.78,
+                height: size * 0.20,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(size * 0.26),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      soilTop,
+                      soilSide,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // The main green top — uses AnimatedContainer for smooth highlight
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              width: size * 0.80,
+              height: size * 0.30,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size * 0.20),
-                color: soilSide,
+                borderRadius: BorderRadius.circular(size * 0.26),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    primary.withOpacity(isEmpty ? 0.20 : 0.95),
+                    primary.withOpacity(isEmpty ? 0.12 : 0.80),
+                  ],
+                ),
+                border: Border.all(
+                  color: selected || grow
+                      ? primary
+                      : Colors.white.withOpacity(0.85),
+                  width: selected || grow ? 2 : 1,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.18),
-                    blurRadius: 6,
+                    color: primary.withOpacity(shadowOpacity),
+                    blurRadius: shadowBlur,
                     offset: const Offset(0, 4),
                   ),
                 ],
               ),
-            ),
-          ),
-
-          // Top grass/plot
-          Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-              width: size * 0.82,
-              height: size * 0.55,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size * 0.24),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [topLight, topDark],
-                ),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.8),
-                  width: 1,
-                ),
-              ),
-            ),
-          ),
-
-          // Small soil strip on top to give 3D layer
-          Align(
-            alignment: Alignment(0, 0.30),
-            child: Container(
-              width: size * 0.75,
-              height: size * 0.16,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(size * 0.18),
-                color: soilTop,
-              ),
-            ),
-          ),
-
-          // Crop / plus icon on top (with stage ring)
-          Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: EdgeInsets.only(top: size * 0.06),
-              child: Container(
-                width: size * 0.46,
-                height: size * 0.46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.white,
-                      Colors.white.withOpacity(0.92),
-                    ],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.14),
-                      blurRadius: 5,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: cropEmoji == null
-                      ? Icon(
-                    Icons.add,
-                    size: size * 0.28,
-                    color: theme.colorScheme.primary,
-                  )
-                      : Text(
-                    cropEmoji!,
-                    style: TextStyle(
-                      fontSize: size * 0.30,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Stage ring around crop (if any)
-          if (ringColor != null)
-            Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: EdgeInsets.only(top: size * 0.04),
-                child: Container(
-                  width: size * 0.56,
-                  height: size * 0.56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: ringColor,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Label at bottom (very small, no overflow)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.only(bottom: size * 0.05),
-              child: SizedBox(
-                width: size * 0.80,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    isEmpty ? 'Tap to plant' : label,
-                    maxLines: 1,
-                    overflow: TextOverflow.fade,
-                    style: TextStyle(
-                      fontSize: size * 0.20,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Crop icon / plus button
+                  Container(
+                    width: size * 0.32,
+                    height: size * 0.32,
+                    decoration: BoxDecoration(
                       color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black.withOpacity(0.45),
-                          blurRadius: 3,
-                          offset: const Offset(0, 1),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.10),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
+                    child: Center(
+                      child: Text(
+                        cropEmoji ?? '＋',
+                        style: TextStyle(
+                          fontSize: size * 0.20,
+                          fontWeight: FontWeight.w600,
+                          color: isEmpty ? primary : Colors.black87,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  SizedBox(height: size * 0.04),
+                  // Label under emoji (short crop name or "Empty")
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: size * 0.11,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
