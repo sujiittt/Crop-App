@@ -1,12 +1,14 @@
+// lib/presentation/tasks_screen/tasks_screen.dart
 import 'package:flutter/material.dart';
-import 'package:sizer/sizer.dart';
-
-import '../../core/app_export.dart';
-import '../profile_screen/profile_screen.dart'; // for routeName to profile
+import '../../models/task_model.dart';
+import '../../data/task_storage.dart';
+import '../../models/task_types.dart';
+import 'add_task/add_task_sheet.dart';
+import 'widgets/task_item.dart';
+import 'widgets/task_detail_sheet.dart';
 
 class TasksScreen extends StatefulWidget {
   static const routeName = '/tasks-screen';
-
   const TasksScreen({super.key});
 
   @override
@@ -14,228 +16,161 @@ class TasksScreen extends StatefulWidget {
 }
 
 class _TasksScreenState extends State<TasksScreen> {
-  // Mock data for now — replace with your real source when ready
-  final List<Map<String, dynamic>> _today = const [
-    {
-      'title': 'Irrigate wheat plot',
-      'time': '06:30 AM',
-      'priority': 'High',
-      'icon': 'water_drop',
-      'description': 'Irrigate 0.8 acre on plot A'
-    },
-    {
-      'title': 'Call dealer about urea',
-      'time': '11:00 AM',
-      'priority': 'Medium',
-      'icon': 'call',
-      'description': 'Confirm availability and price'
-    },
-  ];
+  List<TaskModel> _tasks = [];
+  bool _loading = true;
 
-  final List<Map<String, dynamic>> _upcoming = const [
-    {
-      'title': 'Spray pesticide (field 2)',
-      'date': 'Tomorrow',
-      'priority': 'High',
-      'icon': 'bug_report',
-      'description': 'Aphid control'
-    },
-    {
-      'title': 'Soil sample drop-off',
-      'date': 'Mon, 21 Oct',
-      'priority': 'Low',
-      'icon': 'science',
-      'description': 'At local KVK lab'
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
 
-  final List<Map<String, dynamic>> _completed = const [
-    {
-      'title': 'Update Kisan card',
-      'date': 'Yesterday',
-      'icon': 'check_circle',
-      'description': 'Verification done'
-    },
-  ];
+  Future<void> _loadTasks() async {
+    setState(() => _loading = true);
+    try {
+      final all = await TaskStorage.instance.loadAll();
+      all.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+      setState(() {
+        _tasks = all;
+      });
+    } catch (_) {
+      setState(() {
+        _tasks = [];
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  List<TaskModel> _tasksForDate(DateTime date) {
+    return _tasks.where((t) {
+      final d = t.dateTime;
+      return d.year == date.year && d.month == date.month && d.day == date.day && t.status == TaskStatus.pending;
+    }).toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+  }
+
+  List<TaskModel> get _todayTasks {
+    final today = DateTime.now();
+    return _tasksForDate(DateTime(today.year, today.month, today.day));
+  }
+
+  List<TaskModel> get _upcomingTasks {
+    final now = DateTime.now();
+    return _tasks.where((t) => t.dateTime.isAfter(DateTime(now.year, now.month, now.day)) && t.status == TaskStatus.pending).toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+  }
+
+  List<TaskModel> get _completedTasks {
+    return _tasks.where((t) => t.status == TaskStatus.completed).toList()
+      ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+  }
+
+  Future<void> _openAddTask({String? fieldId, String? cropLabel, String? stageName}) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+      builder: (_) => AddTaskSheet(
+        prefillFieldId: fieldId,
+        prefillCropLabel: cropLabel,
+        prefillStageName: stageName,
+      ),
+    );
+    if (saved == true) await _loadTasks();
+  }
+
+  Future<void> _openTaskDetail(TaskModel task) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+      builder: (_) => TaskDetailSheet(task: task),
+    );
+    // result can be {'action': 'deleted'} or {'action': 'updated'} etc.
+    if (result != null) {
+      await _loadTasks();
+      final action = result['action'] as String?;
+      if (action == 'deleted') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task deleted')));
+      } else if (action == 'updated' || action == 'status_changed') {
+        // optionally show brief feedback
+      }
+    }
+  }
+
+  Widget _section(String title, List<TaskModel> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+          child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        ),
+        ...items.map((t) => TaskItem(
+          task: t,
+          onTap: () => _openTaskDetail(t),
+        )),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppTheme.lightTheme;
-
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('My Tasks'),
+        title: const Text('Tasks'),
         actions: [
           IconButton(
-            tooltip: 'Profile',
-            onPressed: () =>
-                Navigator.pushNamed(context, ProfileScreen.routeName),
-            icon: const Icon(Icons.person),
+            tooltip: 'Add task',
+            icon: const Icon(Icons.add),
+            onPressed: () => _openAddTask(),
           ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-          children: [
-            _SectionHeader(title: 'Today'),
-            if (_today.isEmpty)
-              const _EmptyCard(message: 'No tasks for today')
-            else
-              ..._today.map((t) => _TaskTile(data: t, isToday: true)),
-            SizedBox(height: 2.h),
-
-            _SectionHeader(title: 'Upcoming'),
-            if (_upcoming.isEmpty)
-              const _EmptyCard(message: 'Nothing scheduled')
-            else
-              ..._upcoming.map((t) => _TaskTile(data: t)),
-            SizedBox(height: 2.h),
-
-            _SectionHeader(title: 'Completed'),
-            if (_completed.isEmpty)
-              const _EmptyCard(message: 'No completed tasks yet')
-            else
-              ..._completed.map((t) => _TaskTile(data: t, completed: true)),
-            SizedBox(height: 8.h),
-          ],
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+        onRefresh: _loadTasks,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_todayTasks.isNotEmpty) _section('Today', _todayTasks),
+              if (_upcomingTasks.isNotEmpty) _section('Upcoming', _upcomingTasks),
+              if (_completedTasks.isNotEmpty) _section('Completed', _completedTasks),
+              if (_tasks.isEmpty && !_loading)
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.event_note_outlined, size: 56, color: Colors.grey),
+                        const SizedBox(height: 12),
+                        Text('No tasks yet', style: Theme.of(context).textTheme.bodyLarge),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add first task'),
+                          onPressed: () => _openAddTask(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 28),
+            ],
+          ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add Task (coming soon)')),
-          );
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Add Task'),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = AppTheme.lightTheme;
-    return Padding(
-      padding: EdgeInsets.only(bottom: 1.h),
-      child: Row(
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyCard extends StatelessWidget {
-  final String message;
-  const _EmptyCard({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = AppTheme.lightTheme;
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: EdgeInsets.all(4.w),
-        child: Row(
-          children: [
-            const Icon(Icons.inbox_outlined),
-            SizedBox(width: 3.w),
-            Expanded(child: Text(message, style: theme.textTheme.bodyMedium)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TaskTile extends StatelessWidget {
-  final Map<String, dynamic> data;
-  final bool isToday;
-  final bool completed;
-
-  const _TaskTile({
-    required this.data,
-    this.isToday = false,
-    this.completed = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = AppTheme.lightTheme;
-    final iconName = (data['icon'] as String?) ?? 'task';
-    final title = (data['title'] as String?) ?? 'Task';
-    final subtitle =
-    isToday ? (data['time'] as String? ?? '') : (data['date'] as String? ?? '');
-    final priority = (data['priority'] as String?) ?? '';
-    final description = (data['description'] as String?) ?? '';
-
-    Color? chipColor;
-    switch (priority.toLowerCase()) {
-      case 'high':
-        chipColor = AppTheme.errorLight;
-        break;
-      case 'medium':
-        chipColor = AppTheme.warningLight;
-        break;
-      case 'low':
-        chipColor = AppTheme.successLight;
-        break;
-    }
-
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: CustomIconWidget(iconName: iconName, size: 24, color: theme.primaryColor),
-        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (subtitle.isNotEmpty) Text(subtitle),
-            if (description.isNotEmpty)
-              Text(
-                description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-          ],
-        ),
-        trailing: completed
-            ? const Icon(Icons.check_circle, color: Colors.green)
-            : (priority.isEmpty
-            ? null
-            : Container(
-          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.6.h),
-          decoration: BoxDecoration(
-            color: (chipColor ?? theme.colorScheme.surfaceVariant),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Text(
-            priority.toUpperCase(),
-            style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-        )),
-        onTap: () {
-          // TODO: open task details later
-        },
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openAddTask(),
+        child: const Icon(Icons.add),
+        tooltip: 'Add task',
       ),
     );
   }

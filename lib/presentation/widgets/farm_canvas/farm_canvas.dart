@@ -11,6 +11,9 @@ import 'coachmark.dart';
 import 'farm_storage.dart';
 import 'farm_legend.dart';
 
+// AddTaskSheet import (adjusted path because tasks are under presentation/tasks_screen)
+import '../../tasks_screen/add_task/add_task_sheet.dart';
+
 class FarmCanvas extends StatefulWidget {
   const FarmCanvas({super.key});
 
@@ -157,6 +160,28 @@ class _FarmCanvasState extends State<FarmCanvas> {
     } else {
       _openCropSheet(field, tile);
     }
+  }
+
+  // ---------- Quick-create Add Task (from tile) ----------
+  void _openAddTaskFromTile(FarmField field, FarmTile tile) {
+    // Pre-fill field id and crop label and stage name
+    showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => AddTaskSheet(
+        prefillFieldId: field.id,
+        prefillCropLabel: tile.crop?.label,
+        prefillStageName: tile.stage?.name,
+      ),
+    ).then((saved) {
+      if (saved == true) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task created')));
+      }
+    });
   }
 
   // ---------- Coachmark ----------
@@ -376,35 +401,15 @@ class _FarmCanvasState extends State<FarmCanvas> {
         // ---------------------------
         // RESPONSIVE Pager of fields
         // ---------------------------
-        // Instead of a fixed height, compute page height from available width.
-        // ---------- RESPONSIVE Pager of fields (updated small buffer fix) ----------
-        // ---------- RESPONSIVE Pager of fields (Step 3: slightly shorter + extra buffer) ----------
         LayoutBuilder(builder: (context, constraints) {
-          // available width in parent (full width of Column)
           final availableW = constraints.maxWidth;
-
-          // Use a slightly smaller visible fraction so page has more horizontal breathing.
-          // This also indirectly reduces the farm height (since farmHeight uses pageVisibleWidth).
           const double visibleFraction = 0.90;
           final pageVisibleWidth = availableW * visibleFraction;
-
-          // Increase aspect ratio to make farm area a bit shorter (height = width / ratio).
-          // 4/3 = 1.333; using 1.5 reduces the height by ~11% which should remove a 10px overflow.
           const double farmAspectRatio = 1.5;
-
-          // compute farm grid height based on visible page width
           final double farmHeight = pageVisibleWidth / farmAspectRatio;
-
-          // header/top area inside _FieldCard (safe reserve for title row & icons)
           const double cardHeaderHeight = 52.0;
-
-          // device bottom inset (navigation bar / gesture area)
           final double bottomInset = MediaQuery.of(context).padding.bottom;
-
-          // increase small buffer for extra safety across devices
           const double smallBuffer = 18.0;
-
-          // final PageView height = header + farmHeight + device bottom inset + small buffer
           final double pageViewHeight = cardHeaderHeight + farmHeight + bottomInset + smallBuffer;
 
           return SizedBox(
@@ -428,6 +433,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
                     field: field,
                     onTileTap: (t) => _handleTileTap(field, t),
                     onTileLongPress: (t) => _cycleStage(field, t),
+                    // pass addTask callback to grid? The grid will pass it to tile views
                   ),
                 );
               },
@@ -435,8 +441,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
           );
         }),
 
-
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
 
         // Dots + "Add field" quick action
         Row(
@@ -450,11 +455,11 @@ class _FarmCanvasState extends State<FarmCanvas> {
                     duration: const Duration(milliseconds: 200),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     height: 8,
-                    width: selected ? 20 : 8,
+                    width: selected ? 22 : 8,
                     decoration: BoxDecoration(
                       color: selected
                           ? primary.withOpacity(0.9)
-                          : primary.withOpacity(0.25),
+                          : primary.withOpacity(0.30),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   );
@@ -469,7 +474,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
           ],
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         const FarmLegend(), // tiny legend row
       ],
     );
@@ -497,69 +502,125 @@ class _FieldCard extends StatelessWidget {
     final primary = theme.colorScheme.primary;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10), // more breathing room
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          borderRadius: BorderRadius.circular(18),
+
+          // Soft ground-like gradient
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              primary.withOpacity(0.20),
-              primary.withOpacity(0.08),
+              Color(0xFFF6EFE7), // warm soil tint top
+              Color(0xFFEDE3D6), // soft ground mid
+              Color(0xFFE6DACB), // earth-like bottom
             ],
           ),
-          border: Border.all(color: primary.withOpacity(0.12)),
+
+          // Light border to keep definition
+          border: Border.all(
+            color: Colors.black12,
+            width: 0.8,
+          ),
+
+          // Deeper, softer outer shadow for "real card"
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
+              blurRadius: 14,
+              spreadRadius: 1,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
+            // Subtle inner glow for depth (first layer)
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.03),
+                      Colors.black.withOpacity(0.05),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Main header row (top)
             Positioned(
               left: 12,
               right: 12,
               top: 6,
               child: Row(
                 children: [
-                  Icon(Icons.terrain_rounded, color: primary, size: 20),
-                  const SizedBox(width: 8),
+                  Icon(Icons.terrain_rounded, color: primary, size: 22),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       title,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
                         color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
+                  const SizedBox(width: 4),
                   IconButton(
-                    tooltip: 'Rename',
-                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    tooltip: 'Rename field',
+                    icon: const Icon(Icons.edit_note, size: 22),
                     onPressed: onRename,
                   ),
                   IconButton(
-                    tooltip: 'Delete',
-                    icon: const Icon(Icons.delete_outline, size: 18),
+                    tooltip: 'Delete field',
+                    icon: const Icon(Icons.delete_outline_rounded, size: 22),
                     onPressed: onDelete,
                   ),
                   IconButton(
-                    tooltip: 'Add field',
-                    icon: const Icon(Icons.add_box_outlined, size: 20),
+                    tooltip: 'Add new field',
+                    icon: const Icon(Icons.add_circle_outline, size: 22),
                     onPressed: onAdd,
                   ),
                 ],
               ),
             ),
 
-            // main content area
-            Positioned.fill(top: 44, child: child),
+            // Main content area (child passed from parent) — keep the same top offset as before
+            Positioned.fill(
+              top: 44,
+              child: child,
+            ),
+
+            // Subtle bottom fade for clean edge
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 28,
+              child: IgnorePointer(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.white70,
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -597,9 +658,11 @@ class _FieldGrid extends StatelessWidget {
         final safeTopPad = rawTopPad.clamp(0.0, 24.0);
 
         return Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: padding,
-            vertical: padding + safeTopPad,
+          padding: EdgeInsets.fromLTRB(
+            padding + 2, // slightly wider breathing room
+            padding + safeTopPad, // keep top centering logic
+            padding + 2,
+            padding + 4, // more room at bottom
           ),
           child: SizedBox(
             width: gridWidth,
@@ -620,7 +683,7 @@ class _FieldGrid extends StatelessWidget {
                 ),
 
                 // actual tiles
-                _buildGrid(cellSize),
+                _buildGrid(context, cellSize),
               ],
             ),
           ),
@@ -629,19 +692,17 @@ class _FieldGrid extends StatelessWidget {
     );
   }
 
-  Widget _buildGrid(double cellSize) {
-    final children = <Widget>[];
+  Widget _buildGrid(BuildContext context, double cellSize) {
+    final totalCells = field.rows * field.cols;
 
+    // Build each cell widget and force exact sizing via SizedBox.
+    final cellWidgets = <Widget>[];
     for (var y = 0; y < field.rows; y++) {
       for (var x = 0; x < field.cols; x++) {
         final tile = field.tileAt(x, y)!;
 
-        // -------- OPTIONAL UI TWEAKS (Step-D) --------
-
-        // glow when density high
         final bool highDensity = (tile.density ?? 1) >= 3;
 
-        // color overlay based on stage
         Color? stageOverlay;
         switch (tile.stage) {
           case TileStage.sown:
@@ -657,54 +718,66 @@ class _FieldGrid extends StatelessWidget {
             stageOverlay = null;
         }
 
-        children.add(
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              boxShadow: highDensity
-                  ? [
-                BoxShadow(
-                  color: Colors.green.withOpacity(0.30),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                )
-              ]
-                  : [],
-            ),
-            child: Stack(
-              children: [
-                FarmTileView(
+        final child = AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          child: Stack(
+            children: [
+              SizedBox(
+                width: cellSize,
+                height: cellSize,
+                child: FarmTileView(
                   tile: tile,
                   size: cellSize,
                   onTap: () => onTileTap(tile),
                   onLongPress:
                   onTileLongPress == null ? null : () => onTileLongPress!(tile),
+                  onAddTask: () {
+                    // quick-create a task for this tile
+                    // note: we need access to the parent field here; we capture field from outer scope
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      // Use the parent's method to open the sheet
+                      // Since this is a callback inside a stateless widget, call through context via ancestor state:
+                      final state = context.findAncestorStateOfType<_FarmCanvasState>();
+                      state?._openAddTaskFromTile(field, tile);
+                    });
+                  },
                 ),
-                if (stageOverlay != null)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: stageOverlay,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+              ),
+              if (stageOverlay != null)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: stageOverlay,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         );
+
+        // Wrap into fixed-size container so Grid delegate cannot be nudged to a different size.
+        cellWidgets.add(SizedBox(width: cellSize, height: cellSize, child: child));
       }
     }
 
-    return GridView.count(
+    return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: field.cols,
-      mainAxisSpacing: 6,
-      crossAxisSpacing: 6,
-      children: children,
+      shrinkWrap: true,
+      itemCount: totalCells,
+      padding: EdgeInsets.zero,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: field.cols,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 1.0, // force square cells
+      ),
+      itemBuilder: (context, index) {
+        return cellWidgets[index];
+      },
     );
   }
 }
@@ -731,32 +804,34 @@ class _LightGridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
+    final baseColor = color.withOpacity(0.07); // softer, more natural
+    final linePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..color = color.withOpacity(0.12)
+      ..color = baseColor
       ..strokeWidth = lineWidth;
 
-    // vertical lines
+    // Draw vertical dividers
     for (int c = 0; c <= cols; c++) {
-      final dx = (c * cellSize).clamp(0.0, size.width);
-      canvas.drawLine(Offset(dx, 0), Offset(dx, size.height), paint);
+      final x = (c * cellSize).clamp(0.0, size.width);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), linePaint);
     }
 
-    // horizontal lines
+    // Draw horizontal dividers
     for (int r = 0; r <= rows; r++) {
-      final dy = (r * cellSize).clamp(0.0, size.height);
-      canvas.drawLine(Offset(0, dy), Offset(size.width, dy), paint);
+      final y = (r * cellSize).clamp(0.0, size.height);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
     }
 
-    // optional dots in centers
+    // Optional dot grid for a subtle land texture
     if (showDots) {
-      final dotPaint = Paint()..color = color.withOpacity(0.08);
-      final radius = (cellSize * 0.035).clamp(0.8, 3.0);
+      final dotPaint = Paint()..color = baseColor.withOpacity(0.5);
+      final dotRadius = (cellSize * 0.03).clamp(0.6, 2.0);
+
       for (int r = 0; r < rows; r++) {
         for (int c = 0; c < cols; c++) {
           final cx = (c + 0.5) * cellSize;
           final cy = (r + 0.5) * cellSize;
-          canvas.drawCircle(Offset(cx, cy), radius, dotPaint);
+          canvas.drawCircle(Offset(cx, cy), dotRadius, dotPaint);
         }
       }
     }

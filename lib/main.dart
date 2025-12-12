@@ -20,6 +20,8 @@ import 'presentation/mandi_prices_screen/mandi_prices_screen.dart';
 import 'presentation/profile_screen/profile_screen.dart';
 import 'presentation/tasks_screen/tasks_screen.dart';
 import 'presentation/farmer_registration_screen/farmer_registration_screen.dart';
+import 'presentation/tasks_screen/add_task/add_task_screen.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -76,6 +78,9 @@ class CropWiseApp extends StatelessWidget {
             '/profile-screen': (_) => ProfileScreen(),
             '/tasks-screen': (_) => TasksScreen(),
             '/farmer-registration-screen': (_) => FarmerRegistrationScreen(),
+            AddTaskScreen.routeName: (_) => const AddTaskScreen(),
+
+
           },
 
           // fallback for missing routes so the app doesn't crash
