@@ -2,6 +2,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
+import '../services/notification_service.dart';
 
 class TaskStorage {
   TaskStorage._privateConstructor();
@@ -29,6 +30,7 @@ class TaskStorage {
     await _prefs!.setString(_prefsKey, raw);
   }
 
+  /// ADD TASK + SCHEDULE NOTIFICATION
   Future<TaskModel> addTask({
     required String title,
     required String type,
@@ -39,6 +41,7 @@ class TaskStorage {
   }) async {
     await _ensurePrefs();
     final tasks = await loadAll();
+
     final id = _uuid.v4();
     final model = TaskModel(
       id: id,
@@ -49,8 +52,13 @@ class TaskStorage {
       cropLabel: cropLabel,
       notes: notes,
     );
+
     tasks.add(model);
     await saveAll(tasks);
+
+    // 🔔 schedule notification
+    await NotificationService.instance.scheduleTaskNotification(model);
+
     return model;
   }
 
@@ -64,22 +72,36 @@ class TaskStorage {
     return true;
   }
 
+  /// DELETE TASK + CANCEL NOTIFICATION
   Future<bool> deleteTask(String id) async {
     await _ensurePrefs();
     final tasks = await loadAll();
     final newList = tasks.where((t) => t.id != id).toList();
     if (newList.length == tasks.length) return false;
+
     await saveAll(newList);
+
+    // 🔕 cancel notification
+    await NotificationService.instance.cancelTaskNotification(id);
+
     return true;
   }
 
+  /// UPDATE STATUS (cancel notification when completed)
   Future<bool> setStatus(String id, TaskStatus status) async {
     await _ensurePrefs();
     final tasks = await loadAll();
     final idx = tasks.indexWhere((t) => t.id == id);
     if (idx < 0) return false;
+
     tasks[idx] = tasks[idx].copyWith(status: status);
     await saveAll(tasks);
+
+    if (status == TaskStatus.completed) {
+      // 🔕 cancel notification
+      await NotificationService.instance.cancelTaskNotification(id);
+    }
+
     return true;
   }
 
@@ -89,6 +111,7 @@ class TaskStorage {
     final yyyy = date.year;
     final mm = date.month;
     final dd = date.day;
+
     return tasks.where((t) {
       final d = t.dateTime;
       return d.year == yyyy && d.month == mm && d.day == dd;
@@ -100,8 +123,14 @@ class TaskStorage {
     await _ensurePrefs();
     final tasks = await loadAll();
     final now = DateTime.now();
-    final upcoming = tasks.where((t) => t.dateTime.isAfter(now) && t.status == TaskStatus.pending).toList();
-    upcoming.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+    final upcoming = tasks
+        .where((t) =>
+    t.dateTime.isAfter(now) &&
+        t.status == TaskStatus.pending)
+        .toList()
+      ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
     if (upcoming.length <= limit) return upcoming;
     return upcoming.sublist(0, limit);
   }

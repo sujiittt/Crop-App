@@ -1,125 +1,119 @@
 // lib/core/services/notifications_service.dart
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 
 class NotificationsService {
-  NotificationsService._();
-  static final NotificationsService instance = NotificationsService._();
+  NotificationsService._internal();
+  static final NotificationsService instance =
+  NotificationsService._internal();
 
-  final FlutterLocalNotificationsPlugin _flnp =
+  final FlutterLocalNotificationsPlugin _plugin =
   FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
 
-  static const String _channelId = 'cropwise_reminders';
-  static const String _channelName = 'CropWise Reminders';
-  static const String _channelDesc = 'Planting and task reminders for CropWise';
-
+  // ------------------------------------------------------------
+  // INIT
+  // ------------------------------------------------------------
   Future<void> init() async {
     if (_initialized) return;
-    if (kIsWeb) {
-      // No-op on web
-      _initialized = true;
-      return;
-    }
 
-    // Timezone init
-    try {
-      tzdata.initializeTimeZones();
-      final kolkata = tz.getLocation('Asia/Kolkata');
-      tz.setLocalLocation(kolkata);
-    } catch (_) {
-      // Fallback to local if tz fails for some reason
-      tzdata.initializeTimeZones();
-    }
+    tzdata.initializeTimeZones();
+    tz.setLocalLocation(tz.local);
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
+    const AndroidInitializationSettings androidInit =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    final initSettings = InitializationSettings(
-      android: androidInit,
-      iOS: iosInit,
-    );
+    const DarwinInitializationSettings iosInit =
+    DarwinInitializationSettings();
 
-    await _flnp.initialize(
-      initSettings,
-      // If you want tap handling, add onDidReceiveNotificationResponse here.
-    );
+    const InitializationSettings initSettings =
+    InitializationSettings(android: androidInit, iOS: iosInit);
 
-    // Create Android channel explicitly (iOS uses categories automatically)
-    if (Platform.isAndroid) {
-      final androidPlugin = _flnp
-          .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-      await androidPlugin?.createNotificationChannel(const AndroidNotificationChannel(
-        _channelId,
-        _channelName,
-        description: _channelDesc,
-        importance: Importance.high,
-      ));
-    }
-
+    await _plugin.initialize(initSettings);
     _initialized = true;
   }
 
-  /// Schedule a one-time planting reminder at [whenLocal] (local time).
-  /// Returns the notification id used (also stored alongside the reminder).
-  Future<int> schedulePlantingReminder({
-    required String cropName,
-    required DateTime whenLocal,
-    String? note,
+  // ------------------------------------------------------------
+  // INTERNAL SCHEDULER
+  // ------------------------------------------------------------
+  Future<int> _schedule({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime time,
   }) async {
-    await init();
-    if (kIsWeb) return -1; // no-op on web
+    if (!_initialized) await init();
 
-    // Use epoch seconds hash for a simple, unique-ish id
-    final id = whenLocal.millisecondsSinceEpoch.remainder(1 << 31);
+    final tzTime = tz.TZDateTime.from(time, tz.local);
 
-    final details = NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDesc,
-        priority: Priority.high,
-        importance: Importance.high,
-        category: AndroidNotificationCategory.reminder,
-        styleInformation: const DefaultStyleInformation(true, true),
-      ),
-      iOS: const DarwinNotificationDetails(
-        interruptionLevel: InterruptionLevel.timeSensitive,
-      ),
+    const AndroidNotificationDetails androidDetails =
+    AndroidNotificationDetails(
+      'cropwise_tasks',
+      'Task reminders',
+      channelDescription: 'Reminders for farm tasks',
+      importance: Importance.max,
+      priority: Priority.high,
     );
 
-    final tzTime = tz.TZDateTime.from(whenLocal, tz.local);
+    const NotificationDetails details =
+    NotificationDetails(android: androidDetails);
 
-    await _flnp.zonedSchedule(
+    await _plugin.zonedSchedule(
       id,
-      'Planting reminder: $cropName',
-      (note?.isNotEmpty ?? false) ? note : 'Time to act for $cropName 🌱',
+      title,
+      body,
       tzTime,
       details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidAllowWhileIdle: true,
       uiLocalNotificationDateInterpretation:
       UILocalNotificationDateInterpretation.absoluteTime,
-      payload: cropName,
     );
 
     return id;
   }
 
-  Future<void> cancelReminder(int id) async {
-    await init();
-    if (kIsWeb) return;
-    await _flnp.cancel(id);
+  // ------------------------------------------------------------
+  // ✅ EXACT API EXPECTED BY YOUR UI
+  // ------------------------------------------------------------
+
+  /// Used by:
+  /// - set_planting_reminder_button.dart
+  /// - crop_recommendations_widget.dart
+  ///
+  /// MUST return int notificationId
+  Future<int> schedulePlantingReminder({
+    required String cropName,
+    required DateTime whenLocal,
+    String? note,
+  }) async {
+    final int notificationId =
+        ('plant_$cropName$whenLocal').hashCode;
+
+    final String body = note?.isNotEmpty == true
+        ? note!
+        : 'Time to plant $cropName';
+
+    return _schedule(
+      id: notificationId,
+      title: 'Planting Reminder',
+      body: body,
+      time: whenLocal,
+    );
   }
 
-  Future<List<int>> pendingNotificationIds() async {
-    await init();
-    if (kIsWeb) return const [];
-    final pending = await _flnp.pendingNotificationRequests();
-    return pending.map((e) => e.id).toList();
+  // ------------------------------------------------------------
+  // CANCEL
+  // ------------------------------------------------------------
+  Future<void> cancelByNotificationId(int id) async {
+    if (!_initialized) await init();
+    await _plugin.cancel(id);
+  }
+
+  Future<void> cancelAll() async {
+    if (!_initialized) await init();
+    await _plugin.cancelAll();
   }
 }
