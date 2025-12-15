@@ -55,20 +55,29 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   Future<void> _loadFields() async {
     try {
       final fields = await FarmStorage.load();
+
       setState(() {
-        _fields = fields ?? <FarmField>[];
+        _fields = fields ?? [];
         _loadingFields = false;
+
+        // ✅ SAFETY CHECK:
+        // Only keep selectedFieldId if it exists in the loaded fields
+        final exists = _fields.any((f) => f.id == _selectedFieldId);
+        if (!exists) {
+          _selectedFieldId = null;
+        }
       });
     } catch (_) {
       setState(() {
-        _fields = <FarmField>[];
+        _fields = [];
         _loadingFields = false;
+        _selectedFieldId = null;
       });
     }
 
-    // after fields are loaded, apply prefill suggestions
     _applyPrefillSuggestions();
   }
+
 
   void _applyPrefillSuggestions() {
     // choose suggested task types based on provided crop/stage

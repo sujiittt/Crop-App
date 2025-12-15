@@ -11,8 +11,23 @@ import 'coachmark.dart';
 import 'farm_storage.dart';
 import 'farm_legend.dart';
 
+
+
 // AddTaskSheet import (adjusted path because tasks are under presentation/tasks_screen)
 import '../../tasks_screen/add_task/add_task_sheet.dart';
+import '../../../data/crop_task_generator.dart';
+import '../../../data/crop_task_templates.dart';
+import '../../../data/task_storage.dart';
+
+class _SuggestedTaskItem {
+  final GeneratedTask task;
+  bool selected;
+
+  _SuggestedTaskItem({
+    required this.task,
+    this.selected = true,
+  });
+}
 
 class FarmCanvas extends StatefulWidget {
   const FarmCanvas({super.key});
@@ -28,6 +43,19 @@ class _FarmCanvasState extends State<FarmCanvas> {
   List<FarmField> _fields = [
     FarmField.empty(id: 'f1', name: 'North Plot', cols: 8, rows: 4),
   ];
+  List<GeneratedTask> _suggestedTasks = [];
+  List<_SuggestedTaskItem> _suggestedTaskItems = [];
+  String _autoTaskKey({
+    required String fieldId,
+    required CropStage stage,
+  }) {
+    return '$fieldId-${stage.name}';
+  }
+  final Set<String> _autoTaskGeneratedKeys = {};
+
+
+
+
 
   final _gridKey = GlobalKey();
   OverlayEntry? _coachEntry;
@@ -37,6 +65,136 @@ class _FarmCanvasState extends State<FarmCanvas> {
     super.initState();
     _loadFields();
   }
+  void _generateSuggestedTasks({
+    required String cropName,
+    required CropStage stage,
+    required DateTime stageStartDate,
+    required String fieldId,
+  }) {
+    final key = _autoTaskKey(fieldId: fieldId, stage: stage);
+
+    // ✅ Prevent duplicate suggestions
+    if (_autoTaskGeneratedKeys.contains(key)) {
+      return;
+    }
+
+    final tasks = CropTaskGenerator.generateTasks(
+      cropName: cropName,
+      stage: stage,
+      stageStartDate: stageStartDate,
+    );
+
+    if (tasks.isEmpty) return;
+
+    _autoTaskGeneratedKeys.add(key);
+
+    setState(() {
+      _suggestedTaskItems =
+          tasks.map((t) => _SuggestedTaskItem(task: t)).toList();
+    });
+
+    _showSuggestedTasksSheet();
+  }
+
+  void _showSuggestedTasksSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, sheetSetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 16,
+                right: 16,
+                top: 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Suggested Tasks',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: _suggestedTaskItems.map((item) {
+                        final task = item.task;
+                        return CheckboxListTile(
+                          value: item.selected,
+                          onChanged: (v) {
+                            sheetSetState(() {
+                              item.selected = v ?? true;
+                            });
+                          },
+                          title: Text(task.title),
+                          subtitle: Text(
+                            '${task.dueDate.day}/${task.dueDate.month}/${task.dueDate.year}'
+                                '${task.note != null ? '\n${task.note}' : ''}',
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  ElevatedButton(
+                    onPressed: _saveSelectedSuggestedTasks,
+                    child: const Text('Add Selected Tasks'),
+                  ),
+
+                  const SizedBox(height: 12),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _saveSelectedSuggestedTasks() async {
+    final selected = _suggestedTaskItems.where((e) => e.selected).toList();
+
+    if (selected.isEmpty) {
+      Navigator.pop(context);
+      return;
+    }
+
+    for (final item in selected) {
+      await TaskStorage.instance.addTask(
+        title: item.task.title,
+        type: 'auto-${item.task.title.toLowerCase().replaceAll(' ', '_')}',
+        dateTime: item.task.dueDate,
+        notes: item.task.note,
+      );
+    }
+
+    setState(() {
+      _suggestedTaskItems.clear();
+    });
+
+    Navigator.pop(context);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${selected.length} tasks added')),
+    );
+  }
+
+
+
+
 
   Future<void> _loadFields() async {
     final saved = await FarmStorage.load();
@@ -98,6 +256,14 @@ class _FarmCanvasState extends State<FarmCanvas> {
     if (tile.stage == null) return;
     final newStage = _nextStage(tile.stage!);
     _setTile(field, tile, tile.withStage(newStage));
+    // ✅ STEP 7.3 — regenerate task suggestions for new stage
+    _generateSuggestedTasks(
+      cropName: tile.crop!.label.toLowerCase(),
+      stage: CropStage.values.byName(newStage.name),
+      stageStartDate: DateTime.now(),
+      fieldId: field.id,
+    );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Marked ${tile.crop!.label}: ${newStage.label}')),
     );
@@ -116,6 +282,13 @@ class _FarmCanvasState extends State<FarmCanvas> {
       builder: (_) => PlantTileSheet(
         onPick: (kind, density) {
           _setTile(field, tile, tile.plant(kind, density: density));
+          _generateSuggestedTasks(
+            cropName: kind.label.toLowerCase(),
+            stage: CropStage.sown,
+            stageStartDate: DateTime.now(),
+            fieldId: field.id,
+          );
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
