@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "132037451774",
+    "project_id": "cropwise-794b3",
+    "storage_bucket": "cropwise-794b3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:132037451774:android:271a5c174155faaf83eaaf",
+        "android_client_info": {
+          "package_name": "com.cropwise.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCS2H5bWfvwSCikkQ09kFjk8g59OjqT4-0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
