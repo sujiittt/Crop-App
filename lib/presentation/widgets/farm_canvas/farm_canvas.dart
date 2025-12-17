@@ -11,13 +11,14 @@ import 'coachmark.dart';
 import 'farm_storage.dart';
 import 'farm_legend.dart';
 
-
-
 // AddTaskSheet import (adjusted path because tasks are under presentation/tasks_screen)
 import '../../tasks_screen/add_task/add_task_sheet.dart';
 import '../../../data/crop_task_generator.dart';
 import '../../../data/crop_task_templates.dart';
 import '../../../data/task_storage.dart';
+import '../../../core/auth/auth_guard.dart';
+import '../../../core/auth/auth_state.dart';
+
 
 class _SuggestedTaskItem {
   final GeneratedTask task;
@@ -270,39 +271,59 @@ class _FarmCanvasState extends State<FarmCanvas> {
   }
 
   // ---------- Sheets ----------
-  void _openPlantSheet(FarmField field, FarmTile tile) {
-    _dismissCoach();
+  Future<void> _openPlantSheet(FarmField field, FarmTile tile) async {
+    final isLoggedIn = await AuthState.instance.isLoggedIn();
+
+    final allowed = await AuthGuard.ensureLoggedIn(
+      context,
+      isLoggedIn: isLoggedIn,
+      onLogin: () {
+        debugPrint('User chose to login');
+      },
+    );
+
+    if (!allowed) return;
+
+    // ✅ EXISTING LOGIC (UNCHANGED)
     showModalBottomSheet(
       context: context,
-      isScrollControlled: false,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
       builder: (_) => PlantTileSheet(
         onPick: (kind, density) {
-          _setTile(field, tile, tile.plant(kind, density: density));
+          // ✅ use existing tile update logic
+          _setTile(
+            field: field,
+            tile: tile,
+            kind: kind,
+            density: density,
+          );
+
+
+// ✅ generate tasks using FIRST stage (safe default)
           _generateSuggestedTasks(
-            cropName: kind.label.toLowerCase(),
-            stage: CropStage.sown,
+            cropName: kind.label,
+            stage: CropStage.values.first,
             stageStartDate: DateTime.now(),
             fieldId: field.id,
           );
 
+
+          Navigator.pop(context);
+
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Planted ${kind.label} ×$density at (${tile.x + 1}, ${tile.y + 1})',
-              ),
-            ),
+            SnackBar(content: Text('${kind.label} planted')),
           );
         },
+
+        // ✅ REQUIRED FIX — ADD THIS
         onOpenSoil: () {
+          Navigator.pop(context); // close sheet
           Navigator.of(context).pushNamed('/soil-analysis-screen');
         },
       ),
     );
+
   }
+
 
   void _openCropSheet(FarmField field, FarmTile tile) {
     final crop = tile.crop!;

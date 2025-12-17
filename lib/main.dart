@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:firebase_core/firebase_core.dart';
+
 
 // app-wide exports
 import 'core/app_export.dart';
@@ -10,6 +12,7 @@ import 'services/notification_service.dart';
 
 // home
 import 'presentation/dashboard_screen/dashboard_screen.dart';
+
 
 // screens
 import 'presentation/government_schemes_screen/government_schemes_screen.dart';
@@ -26,6 +29,8 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
 
   // initialize REAL notifications
   await NotificationService.instance.init();
