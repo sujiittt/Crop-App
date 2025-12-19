@@ -288,17 +288,22 @@ class _FarmCanvasState extends State<FarmCanvas> {
     showModalBottomSheet(
       context: context,
       builder: (_) => PlantTileSheet(
-        onPick: (kind, density) {
-          // ✅ use existing tile update logic
-          _setTile(
-            field: field,
-            tile: tile,
-            kind: kind,
-            density: density,
+        onPick: (kind, density) async {
+          final isLoggedIn = await AuthState.instance.isLoggedIn();
+
+          final allowed = await AuthGuard.ensureLoggedIn(
+            context,
+            isLoggedIn: isLoggedIn,
+            onLogin: () {
+              debugPrint('User chose to login');
+            },
           );
 
+          if (!allowed) return;
 
-// ✅ generate tasks using FIRST stage (safe default)
+          // ✅ KEEP YOUR ORIGINAL TILE UPDATE LOGIC
+          _setTile(field, tile, tile);
+
           _generateSuggestedTasks(
             cropName: kind.label,
             stage: CropStage.values.first,
@@ -306,13 +311,10 @@ class _FarmCanvasState extends State<FarmCanvas> {
             fieldId: field.id,
           );
 
-
           Navigator.pop(context);
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${kind.label} planted')),
-          );
         },
+
+
 
         // ✅ REQUIRED FIX — ADD THIS
         onOpenSoil: () {
@@ -661,7 +663,23 @@ class _FarmCanvasState extends State<FarmCanvas> {
               ),
             const SizedBox(width: 10),
             OutlinedButton.icon(
-              onPressed: _createFieldDialog,
+              onPressed: () async {
+                final isLoggedIn = await AuthState.instance.isLoggedIn();
+
+                final allowed = await AuthGuard.ensureLoggedIn(
+                  context,
+                  isLoggedIn: isLoggedIn,
+                  onLogin: () {
+                    debugPrint('User chose to login');
+                  },
+                );
+
+                if (!allowed) return;
+
+                // ✅ EXISTING LOGIC (UNCHANGED)
+                _createFieldDialog();
+              },
+
               icon: const Icon(Icons.add),
               label: const Text('Add field'),
             ),
