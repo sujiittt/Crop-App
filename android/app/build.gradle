@@ -71,4 +71,13 @@ dependencies {
 
     // Firestore database
     implementation("com.google.firebase:firebase-firestore")
+
+    implementation "androidx.activity:activity-ktx:1.8.2"
+
+}
+configurations.all {
+    resolutionStrategy {
+        force "androidx.activity:activity:1.8.2"
+        force "androidx.activity:activity-ktx:1.8.2"
+    }
 }

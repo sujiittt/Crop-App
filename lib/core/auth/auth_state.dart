@@ -1,26 +1,24 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthState {
-  static const _loginKey = 'is_logged_in';
-
   AuthState._internal();
   static final AuthState instance = AuthState._internal();
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   /// Check if user is logged in
+  bool get isLoggedInSync => _auth.currentUser != null;
+
+  /// Async check (useful later)
   Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_loginKey) ?? false;
+    return _auth.currentUser != null;
   }
 
-  /// Mark user as logged in
-  Future<void> setLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_loginKey, true);
-  }
+  /// Current user
+  User? get currentUser => _auth.currentUser;
 
-  /// Mark user as logged out
-  Future<void> setLoggedOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_loginKey, false);
+  /// Sign out
+  Future<void> signOut() async {
+    await _auth.signOut();
   }
 }

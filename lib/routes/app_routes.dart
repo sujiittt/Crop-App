@@ -8,6 +8,8 @@ import '../presentation/weather_forecast_screen/weather_forecast_screen.dart';
 import 'package:cropwise/presentation/profile_screen/profile_screen.dart';
 import 'package:cropwise/presentation/mandi_prices_screen/mandi_prices_screen.dart';
 import 'package:cropwise/presentation/tasks_screen/tasks_screen.dart';
+import 'package:cropwise/presentation/auth/login_screen.dart';
+
 
 
 class AppRoutes {
@@ -31,6 +33,8 @@ class AppRoutes {
     ProfileScreen.routeName: (context) => const ProfileScreen(),
     MandiPricesScreen.routeName: (context) => const MandiPricesScreen(),
     TasksScreen.routeName: (context) => const TasksScreen(),
+    LoginScreen.routeName: (context) => const LoginScreen(),
+
 
   };
 }
