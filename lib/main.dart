@@ -24,6 +24,8 @@ import 'presentation/profile_screen/profile_screen.dart';
 import 'presentation/tasks_screen/tasks_screen.dart';
 import 'presentation/farmer_registration_screen/farmer_registration_screen.dart';
 import 'presentation/tasks_screen/add_task/add_task_screen.dart';
+import 'presentation/auth/login_screen.dart';   // already imported by you?
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -62,22 +64,12 @@ class CropWiseApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           navigatorKey: navigatorKey,
           theme: AppTheme.lightTheme,
-          home: const DashboardScreen(),
 
-          routes: {
-            '/government-schemes-screen': (_) => GovernmentSchemesScreen(),
-            '/weather-forecast-screen': (_) => WeatherForecastScreen(),
-            '/soil-analysis-screen': (_) => SoilAnalysisScreen(),
-            '/crop-recommendations-screen': (_) =>
-                CropRecommendationsScreen(),
-            '/mandi-prices-screen': (_) => MandiPricesScreen(),
-            '/profile': (_) => ProfileScreen(),
-            '/profile-screen': (_) => ProfileScreen(),
-            '/tasks-screen': (_) => TasksScreen(),
-            '/farmer-registration-screen': (_) =>
-                FarmerRegistrationScreen(),
-            AddTaskScreen.routeName: (_) => const AddTaskScreen(),
-          },
+          // 🔥 Use unified route table
+          routes: AppRoutes.routes,
+
+          // 🔥 Load dashboard as the initial route
+          initialRoute: AppRoutes.dashboard,
 
           onUnknownRoute: (settings) {
             return MaterialPageRoute(

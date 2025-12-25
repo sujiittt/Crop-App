@@ -24,6 +24,7 @@ class CropTaskGenerator {
     required CropStage stage,
     required DateTime stageStartDate,
   }) {
+
     final templates = CropTaskTemplates.getTasks(
       cropName: cropName,
       stage: stage,
@@ -40,5 +41,8 @@ class CropTaskGenerator {
         note: template.note,
       );
     }).toList();
+  }
+  static bool hasTemplatesForCrop(String cropName) {
+    return CropTaskTemplates.hasTemplatesForCrop(cropName);
   }
 }

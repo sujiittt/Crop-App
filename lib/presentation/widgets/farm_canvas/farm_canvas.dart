@@ -74,13 +74,19 @@ class _FarmCanvasState extends State<FarmCanvas> {
   }) {
     final key = _autoTaskKey(fieldId: fieldId, stage: stage);
 
-    // ✅ Prevent duplicate suggestions
-    if (_autoTaskGeneratedKeys.contains(key)) {
-      return;
+    // Prevent duplicate suggestions
+    if (_autoTaskGeneratedKeys.contains(key)) return;
+
+    final normalizedCrop = cropName.toLowerCase();
+
+    // ✅ NEW: Skip crops without templates
+    if (!CropTaskGenerator.hasTemplatesForCrop(cropName)) {
+      debugPrint('No task templates for crop: $cropName');
+      return; // ❗ DO NOTHING — prevents black screen
     }
 
     final tasks = CropTaskGenerator.generateTasks(
-      cropName: cropName,
+      cropName: normalizedCrop,
       stage: stage,
       stageStartDate: stageStartDate,
     );
@@ -94,8 +100,10 @@ class _FarmCanvasState extends State<FarmCanvas> {
           tasks.map((t) => _SuggestedTaskItem(task: t)).toList();
     });
 
+    // ✅ Only called when tasks exist
     _showSuggestedTasksSheet();
   }
+
 
   void _showSuggestedTasksSheet() {
     showModalBottomSheet(
@@ -301,18 +309,27 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
           if (!allowed) return;
 
-          // ✅ KEEP YOUR ORIGINAL TILE UPDATE LOGIC
-          _setTile(field, tile, tile);
+          // ✅ CORRECT: create a NEW non-empty tile
+          final newTile = FarmTile(
+            x: tile.x,
+            y: tile.y,
+            crop: kind,
+            density: density,
+            stage: TileStage.sown,
+          );
+
+          _setTile(field, tile, newTile);
 
           _generateSuggestedTasks(
-            cropName: kind.label,
-            stage: CropStage.values.first,
+            cropName: kind.label.toLowerCase(),
+            stage: CropStage.sown,
             stageStartDate: DateTime.now(),
             fieldId: field.id,
           );
 
           Navigator.pop(context);
         },
+
 
 
 

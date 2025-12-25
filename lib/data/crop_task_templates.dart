@@ -23,6 +23,19 @@ class CropTaskTemplate {
 
 class CropTaskTemplates {
   /// Returns task templates for a given crop & stage
+  static bool hasTemplatesForCrop(String cropName) {
+    switch (cropName.toLowerCase()) {
+      case 'wheat':
+      case 'rice':
+      case 'cotton':
+      case 'maize':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  /// Returns task templates for a given crop & stage
   static List<CropTaskTemplate> getTasks({
     required String cropName,
     required CropStage stage,
@@ -32,16 +45,12 @@ class CropTaskTemplates {
     switch (crop) {
       case 'wheat':
         return _wheat(stage);
-
       case 'rice':
         return _rice(stage);
-
       case 'cotton':
         return _cotton(stage);
-
       case 'maize':
         return _maize(stage);
-
       default:
         return [];
     }
