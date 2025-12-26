@@ -30,27 +30,19 @@ import 'presentation/auth/login_screen.dart';   // already imported by you?
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
+    await Firebase.initializeApp();
+    await NotificationService.instance.init();
 
-  // initialize REAL notifications
-  await NotificationService.instance.init();
-
-  // catch uncaught Flutter framework errors
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    // ignore: avoid_print
-    print('FlutterError: ${details.exceptionAsString()}');
-  };
-
-  runZonedGuarded(() {
     runApp(const CropWiseApp());
   }, (error, stack) {
-    // ignore: avoid_print
-    print('Uncaught zone error: $error\n$stack');
+    debugPrint('Uncaught zone error: $error');
+    debugPrintStack(stackTrace: stack);
   });
 }
+
 
 class CropWiseApp extends StatelessWidget {
   const CropWiseApp({super.key});

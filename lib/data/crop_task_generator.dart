@@ -18,31 +18,31 @@ class GeneratedTask {
 }
 
 class CropTaskGenerator {
-  /// Generate task drafts for a crop & stage
   static List<GeneratedTask> generateTasks({
     required String cropName,
     required CropStage stage,
     required DateTime stageStartDate,
   }) {
-
     final templates = CropTaskTemplates.getTasks(
       cropName: cropName,
       stage: stage,
     );
 
     return templates.map((template) {
-      final dueDate = stageStartDate.add(
-        Duration(days: template.afterDays),
-      );
-
       return GeneratedTask(
         title: template.title,
-        dueDate: dueDate,
+        dueDate: stageStartDate.add(Duration(days: template.afterDays)),
         note: template.note,
       );
     }).toList();
   }
-  static bool hasTemplatesForCrop(String cropName) {
-    return CropTaskTemplates.hasTemplatesForCrop(cropName);
+  static bool hasTemplatesForCrop({
+    required String cropName,
+    required CropStage stage,
+  }) {
+    return CropTaskTemplates.getTasks(
+      cropName: cropName,
+      stage: stage,
+    ).isNotEmpty;
   }
 }

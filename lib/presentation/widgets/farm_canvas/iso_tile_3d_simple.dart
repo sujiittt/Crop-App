@@ -126,60 +126,71 @@ class IsoTile3DSimple extends StatelessWidget {
                     width: selected ? 2 : 1.2,
                   ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Crop icon circle
-                    Container(
-                      width: size * 0.32,
-                      height: size * 0.32,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
-                          )
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          cropEmoji ?? '＋',
-                          style: TextStyle(
-                            fontSize: size * 0.20,
-                            fontWeight: FontWeight.bold,
-                            color: isEmpty
-                                ? Colors.green.shade800
-                                : Colors.black87,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.max, // 🔴 IMPORTANT
+                      children: [
+                        // Crop icon (flexible)
+                        Flexible(
+                          flex: 3,
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: Container(
+                              width: size * 0.32,
+                              height: size * 0.32,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                cropEmoji ?? '＋',
+                                style: TextStyle(
+                                  fontSize: size * 0.20,
+                                  fontWeight: FontWeight.bold,
+                                  color: isEmpty
+                                      ? Colors.green.shade800
+                                      : Colors.black87,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
 
-                    // Label
-                    Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: size * 0.11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        shadows: const [
-                          Shadow(
-                            blurRadius: 2,
-                            offset: Offset(1, 1),
-                            color: Colors.black26,
-                          )
-                        ],
-                      ),
-                    ),
-                  ],
+                        // Label (flexible, auto-scales)
+                        Flexible(
+                          flex: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 2,
+                                      offset: Offset(1, 1),
+                                      color: Colors.black26,
+                                    )
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
+
               ),
             ],
           ),

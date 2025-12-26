@@ -8,6 +8,17 @@ enum CropStage {
   growing,
   harvest,
 }
+// List of crops that have task templates
+const Set<String> supportedCrops = {
+  'wheat',
+  'rice',
+  'cotton',
+  'maize',
+  'tomato',
+  'potato',
+  'onion',
+};
+
 
 class CropTaskTemplate {
   final String title;
@@ -51,6 +62,15 @@ class CropTaskTemplates {
         return _cotton(stage);
       case 'maize':
         return _maize(stage);
+      case 'tomato':
+        return _tomato(stage);
+
+      case 'potato':
+        return _potato(stage);
+
+      case 'onion':
+        return _onion(stage);
+
       default:
         return [];
     }
@@ -213,6 +233,60 @@ class CropTaskTemplates {
             title: 'Harvest maize',
             afterDays: 90,
           ),
+        ];
+    }
+  }
+  // ---------------- TOMATO ----------------
+
+  static List<CropTaskTemplate> _tomato(CropStage stage) {
+    switch (stage) {
+      case CropStage.sown:
+        return const [
+          CropTaskTemplate(title: 'First watering', afterDays: 4),
+          CropTaskTemplate(title: 'Seedling check', afterDays: 7),
+        ];
+      case CropStage.growing:
+        return const [
+          CropTaskTemplate(title: 'Staking support', afterDays: 20),
+          CropTaskTemplate(title: 'Pest monitoring', afterDays: 30),
+        ];
+      case CropStage.harvest:
+        return const [
+          CropTaskTemplate(title: 'Harvest tomatoes', afterDays: 75),
+        ];
+    }
+  }
+
+  static List<CropTaskTemplate> _potato(CropStage stage) {
+    switch (stage) {
+      case CropStage.sown:
+        return const [
+          CropTaskTemplate(title: 'First irrigation', afterDays: 5),
+        ];
+      case CropStage.growing:
+        return const [
+          CropTaskTemplate(title: 'Earthing up soil', afterDays: 25),
+        ];
+      case CropStage.harvest:
+        return const [
+          CropTaskTemplate(title: 'Harvest potatoes', afterDays: 90),
+        ];
+    }
+  }
+
+  static List<CropTaskTemplate> _onion(CropStage stage) {
+    switch (stage) {
+      case CropStage.sown:
+        return const [
+          CropTaskTemplate(title: 'Light irrigation', afterDays: 3),
+        ];
+      case CropStage.growing:
+        return const [
+          CropTaskTemplate(title: 'Weed removal', afterDays: 30),
+        ];
+      case CropStage.harvest:
+        return const [
+          CropTaskTemplate(title: 'Harvest onions', afterDays: 110),
         ];
     }
   }

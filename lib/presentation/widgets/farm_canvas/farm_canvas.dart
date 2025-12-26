@@ -74,15 +74,18 @@ class _FarmCanvasState extends State<FarmCanvas> {
   }) {
     final key = _autoTaskKey(fieldId: fieldId, stage: stage);
 
-    // Prevent duplicate suggestions
+    // Prevent duplicates
     if (_autoTaskGeneratedKeys.contains(key)) return;
 
     final normalizedCrop = cropName.toLowerCase();
 
-    // ✅ NEW: Skip crops without templates
-    if (!CropTaskGenerator.hasTemplatesForCrop(cropName)) {
-      debugPrint('No task templates for crop: $cropName');
-      return; // ❗ DO NOTHING — prevents black screen
+    // ✅ CRITICAL SAFETY CHECK
+    if (!CropTaskGenerator.hasTemplatesForCrop(
+      cropName: normalizedCrop,
+      stage: stage,
+    )) {
+      debugPrint('No task templates for $normalizedCrop at stage $stage');
+      return;
     }
 
     final tasks = CropTaskGenerator.generateTasks(
@@ -90,7 +93,9 @@ class _FarmCanvasState extends State<FarmCanvas> {
       stage: stage,
       stageStartDate: stageStartDate,
     );
-
+    if (tasks.isEmpty) {
+      return; // <-- DO NOTHING, NO UI, NO STATE
+    }
     if (tasks.isEmpty) return;
 
     _autoTaskGeneratedKeys.add(key);
@@ -100,9 +105,12 @@ class _FarmCanvasState extends State<FarmCanvas> {
           tasks.map((t) => _SuggestedTaskItem(task: t)).toList();
     });
 
-    // ✅ Only called when tasks exist
     _showSuggestedTasksSheet();
   }
+
+
+
+
 
 
   void _showSuggestedTasksSheet() {
