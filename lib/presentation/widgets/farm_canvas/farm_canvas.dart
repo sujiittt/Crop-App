@@ -48,7 +48,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
   List<_SuggestedTaskItem> _suggestedTaskItems = [];
   String _autoTaskKey({
     required String fieldId,
-    required CropStage stage,
+    required TileStage stage,
   }) {
     return '$fieldId-${stage.name}';
   }
@@ -68,7 +68,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
   }
   void _generateSuggestedTasks({
     required String cropName,
-    required CropStage stage,
+    required TileStage stage,
     required DateTime stageStartDate,
     required String fieldId,
   }) {
@@ -77,25 +77,15 @@ class _FarmCanvasState extends State<FarmCanvas> {
     // Prevent duplicates
     if (_autoTaskGeneratedKeys.contains(key)) return;
 
-    final normalizedCrop = cropName.toLowerCase();
-
-    // ✅ CRITICAL SAFETY CHECK
-    if (!CropTaskGenerator.hasTemplatesForCrop(
-      cropName: normalizedCrop,
-      stage: stage,
-    )) {
-      debugPrint('No task templates for $normalizedCrop at stage $stage');
-      return;
-    }
+    // Skip crops without templates
+    if (!CropTaskGenerator.hasTemplatesForCrop(cropName)) return;
 
     final tasks = CropTaskGenerator.generateTasks(
-      cropName: normalizedCrop,
+      cropName: cropName,
       stage: stage,
       stageStartDate: stageStartDate,
     );
-    if (tasks.isEmpty) {
-      return; // <-- DO NOTHING, NO UI, NO STATE
-    }
+
     if (tasks.isEmpty) return;
 
     _autoTaskGeneratedKeys.add(key);
@@ -105,11 +95,13 @@ class _FarmCanvasState extends State<FarmCanvas> {
           tasks.map((t) => _SuggestedTaskItem(task: t)).toList();
     });
 
-    _showSuggestedTasksSheet();
+    // ✅ CRITICAL FIX:
+    // Wait until current UI frame finishes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showSuggestedTasksSheet();
+    });
   }
-
-
-
 
 
 
@@ -276,7 +268,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
     // ✅ STEP 7.3 — regenerate task suggestions for new stage
     _generateSuggestedTasks(
       cropName: tile.crop!.label.toLowerCase(),
-      stage: CropStage.values.byName(newStage.name),
+      stage: TileStage.values.byName(newStage.name),
       stageStartDate: DateTime.now(),
       fieldId: field.id,
     );
@@ -327,12 +319,9 @@ class _FarmCanvasState extends State<FarmCanvas> {
           );
 
           _setTile(field, tile, newTile);
-
-          _generateSuggestedTasks(
-            cropName: kind.label.toLowerCase(),
-            stage: CropStage.sown,
-            stageStartDate: DateTime.now(),
-            fieldId: field.id,
+          _afterPlantTile(
+            field: field,
+            tile: newTile,
           );
 
           Navigator.pop(context);
@@ -382,6 +371,22 @@ class _FarmCanvasState extends State<FarmCanvas> {
       _openCropSheet(field, tile);
     }
   }
+  void _afterPlantTile({
+    required FarmField field,
+    required FarmTile tile,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      _generateSuggestedTasks(
+        cropName: tile.crop!.label.toLowerCase(),
+        stage: tile.stage!,
+        stageStartDate: DateTime.now(),
+        fieldId: field.id,
+      );
+    });
+  }
+
 
   // ---------- Quick-create Add Task (from tile) ----------
   void _openAddTaskFromTile(FarmField field, FarmTile tile) {

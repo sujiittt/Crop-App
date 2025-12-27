@@ -1,9 +1,5 @@
-// lib/data/crop_task_generator.dart
-//
-// Converts crop task templates into real task drafts
-// using crop stage start date.
-
 import 'crop_task_templates.dart';
+import '../../presentation/widgets/farm_canvas/models.dart';
 
 class GeneratedTask {
   final String title;
@@ -20,7 +16,7 @@ class GeneratedTask {
 class CropTaskGenerator {
   static List<GeneratedTask> generateTasks({
     required String cropName,
-    required CropStage stage,
+    required TileStage stage,
     required DateTime stageStartDate,
   }) {
     final templates = CropTaskTemplates.getTasks(
@@ -28,21 +24,26 @@ class CropTaskGenerator {
       stage: stage,
     );
 
-    return templates.map((template) {
+    if (templates.isEmpty) return [];
+
+    return templates.map((t) {
       return GeneratedTask(
-        title: template.title,
-        dueDate: stageStartDate.add(Duration(days: template.afterDays)),
-        note: template.note,
+        title: t.title,
+        dueDate: stageStartDate.add(Duration(days: t.afterDays)),
+        note: t.note,
       );
     }).toList();
   }
-  static bool hasTemplatesForCrop({
-    required String cropName,
-    required CropStage stage,
-  }) {
-    return CropTaskTemplates.getTasks(
-      cropName: cropName,
-      stage: stage,
-    ).isNotEmpty;
+
+  static bool hasTemplatesForCrop(String cropName) {
+    return [
+      'wheat',
+      'rice',
+      'maize',
+      'cotton',
+      'tomato',
+      'potato',
+      'onion',
+    ].contains(cropName.toLowerCase());
   }
 }

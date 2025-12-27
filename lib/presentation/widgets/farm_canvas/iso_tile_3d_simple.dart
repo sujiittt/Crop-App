@@ -190,7 +190,6 @@ class IsoTile3DSimple extends StatelessWidget {
                     );
                   },
                 ),
-
               ),
             ],
           ),

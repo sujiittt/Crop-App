@@ -3,11 +3,28 @@
 // Static crop task knowledge base.
 // Used to auto-suggest tasks for farmers based on crop & stage.
 
+// ADD THIS at top
+import '../../presentation/widgets/farm_canvas/models.dart';
+
 enum CropStage {
   sown,
   growing,
   harvest,
 }
+
+/// 🔁 Converter (SINGLE SOURCE OF TRUTH)
+CropStage cropStageFromTileStage(TileStage stage) {
+  switch (stage) {
+    case TileStage.sown:
+      return CropStage.sown;
+    case TileStage.growing:
+      return CropStage.growing;
+    case TileStage.harvest:
+      return CropStage.harvest;
+  }
+}
+// uses TileStage instead
+
 // List of crops that have task templates
 const Set<String> supportedCrops = {
   'wheat',
@@ -38,8 +55,11 @@ class CropTaskTemplates {
     switch (cropName.toLowerCase()) {
       case 'wheat':
       case 'rice':
-      case 'cotton':
       case 'maize':
+      case 'onion':
+      case 'tomato':
+      case 'potato':
+      case 'cotton':
         return true;
       default:
         return false;
@@ -49,32 +69,29 @@ class CropTaskTemplates {
   /// Returns task templates for a given crop & stage
   static List<CropTaskTemplate> getTasks({
     required String cropName,
-    required CropStage stage,
+    required TileStage stage,
   }) {
     final crop = cropName.toLowerCase();
+    final cropStage = cropStageFromTileStage(stage);
 
     switch (crop) {
       case 'wheat':
-        return _wheat(stage);
+        return _wheat(cropStage);
       case 'rice':
-        return _rice(stage);
-      case 'cotton':
-        return _cotton(stage);
+        return _rice(cropStage);
       case 'maize':
-        return _maize(stage);
+        return _maize(cropStage);
       case 'tomato':
-        return _tomato(stage);
-
+        return _tomato(cropStage);
       case 'potato':
-        return _potato(stage);
-
+        return _potato(cropStage);
       case 'onion':
-        return _onion(stage);
-
+        return _onion(cropStage);
       default:
         return [];
     }
   }
+
 
   // ---------------- WHEAT ----------------
 
@@ -236,23 +253,23 @@ class CropTaskTemplates {
         ];
     }
   }
-  // ---------------- TOMATO ----------------
 
+  // ---------------- TOMATO ----------------
   static List<CropTaskTemplate> _tomato(CropStage stage) {
     switch (stage) {
       case CropStage.sown:
         return const [
-          CropTaskTemplate(title: 'First watering', afterDays: 4),
-          CropTaskTemplate(title: 'Seedling check', afterDays: 7),
+          CropTaskTemplate(title: 'Initial watering', afterDays: 3),
+          CropTaskTemplate(title: 'Apply compost', afterDays: 10),
         ];
       case CropStage.growing:
         return const [
-          CropTaskTemplate(title: 'Staking support', afterDays: 20),
-          CropTaskTemplate(title: 'Pest monitoring', afterDays: 30),
+          CropTaskTemplate(title: 'Support staking', afterDays: 20),
+          CropTaskTemplate(title: 'Pest check', afterDays: 30),
         ];
       case CropStage.harvest:
         return const [
-          CropTaskTemplate(title: 'Harvest tomatoes', afterDays: 75),
+          CropTaskTemplate(title: 'Harvest tomatoes', afterDays: 70),
         ];
     }
   }
@@ -265,7 +282,7 @@ class CropTaskTemplates {
         ];
       case CropStage.growing:
         return const [
-          CropTaskTemplate(title: 'Earthing up soil', afterDays: 25),
+          CropTaskTemplate(title: 'Earthing up', afterDays: 25),
         ];
       case CropStage.harvest:
         return const [
@@ -278,11 +295,11 @@ class CropTaskTemplates {
     switch (stage) {
       case CropStage.sown:
         return const [
-          CropTaskTemplate(title: 'Light irrigation', afterDays: 3),
+          CropTaskTemplate(title: 'Light irrigation', afterDays: 4),
         ];
       case CropStage.growing:
         return const [
-          CropTaskTemplate(title: 'Weed removal', afterDays: 30),
+          CropTaskTemplate(title: 'Weeding', afterDays: 30),
         ];
       case CropStage.harvest:
         return const [
@@ -290,4 +307,5 @@ class CropTaskTemplates {
         ];
     }
   }
+
 }
