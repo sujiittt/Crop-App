@@ -96,11 +96,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
     });
 
     // ✅ CRITICAL FIX:
-    // Wait until current UI frame finishes
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
       _showSuggestedTasksSheet();
-    });
   }
 
 
@@ -309,7 +305,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
           if (!allowed) return;
 
-          // ✅ CORRECT: create a NEW non-empty tile
+          // 1️⃣ Update tile first
           final newTile = FarmTile(
             x: tile.x,
             y: tile.y,
@@ -319,13 +315,23 @@ class _FarmCanvasState extends State<FarmCanvas> {
           );
 
           _setTile(field, tile, newTile);
-          _afterPlantTile(
-            field: field,
-            tile: newTile,
-          );
 
+          // 2️⃣ CLOSE PlantTileSheet FIRST
           Navigator.pop(context);
+
+          // 3️⃣ WAIT for sheet to close, then show suggested tasks
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+
+            _generateSuggestedTasks(
+              cropName: kind.label.toLowerCase(),
+              stage: TileStage.sown,
+              stageStartDate: DateTime.now(),
+              fieldId: field.id,
+            );
+          });
         },
+
 
 
 
