@@ -74,10 +74,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
   }) {
     final key = _autoTaskKey(fieldId: fieldId, stage: stage);
 
-    // Prevent duplicates
     if (_autoTaskGeneratedKeys.contains(key)) return;
-
-    // Skip crops without templates
     if (!CropTaskGenerator.hasTemplatesForCrop(cropName)) return;
 
     final tasks = CropTaskGenerator.generateTasks(
@@ -95,9 +92,14 @@ class _FarmCanvasState extends State<FarmCanvas> {
           tasks.map((t) => _SuggestedTaskItem(task: t)).toList();
     });
 
-    // ✅ CRITICAL FIX:
+    // ✅ SAFE: open AFTER current frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       _showSuggestedTasksSheet();
+    });
   }
+
+
 
 
 
@@ -281,70 +283,56 @@ class _FarmCanvasState extends State<FarmCanvas> {
     final allowed = await AuthGuard.ensureLoggedIn(
       context,
       isLoggedIn: isLoggedIn,
-      onLogin: () {
-        debugPrint('User chose to login');
-      },
+      onLogin: () {},
     );
 
     if (!allowed) return;
 
-    // ✅ EXISTING LOGIC (UNCHANGED)
-    showModalBottomSheet(
+    // ✅ WAIT for result from sheet
+    final result = await showModalBottomSheet<_PlantResult>(
       context: context,
-      builder: (_) => PlantTileSheet(
-        onPick: (kind, density) async {
-          final isLoggedIn = await AuthState.instance.isLoggedIn();
-
-          final allowed = await AuthGuard.ensureLoggedIn(
-            context,
-            isLoggedIn: isLoggedIn,
-            onLogin: () {
-              debugPrint('User chose to login');
-            },
-          );
-
-          if (!allowed) return;
-
-          // 1️⃣ Update tile first
-          final newTile = FarmTile(
-            x: tile.x,
-            y: tile.y,
-            crop: kind,
-            density: density,
-            stage: TileStage.sown,
-          );
-
-          _setTile(field, tile, newTile);
-
-          // 2️⃣ CLOSE PlantTileSheet FIRST
-          Navigator.pop(context);
-
-          // 3️⃣ WAIT for sheet to close, then show suggested tasks
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-
-            _generateSuggestedTasks(
-              cropName: kind.label.toLowerCase(),
-              stage: TileStage.sown,
-              stageStartDate: DateTime.now(),
-              fieldId: field.id,
-            );
-          });
-        },
-
-
-
-
-
-        // ✅ REQUIRED FIX — ADD THIS
-        onOpenSoil: () {
-          Navigator.pop(context); // close sheet
-          Navigator.of(context).pushNamed('/soil-analysis-screen');
-        },
+      isScrollControlled: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      builder: (sheetContext) {
+        return PlantTileSheet(
+          onPick: (kind, density) {
+            Navigator.pop(
+              sheetContext,
+              _PlantResult(kind: kind, density: density),
+            );
+          },
+          onOpenSoil: () {
+            Navigator.pop(sheetContext);
+            Navigator.of(context).pushNamed('/soil-analysis-screen');
+          },
+        );
+      },
     );
 
+    // 🚫 User cancelled
+    if (result == null) return;
+
+    // ✅ SAFE STATE UPDATE (sheet already closed)
+    final newTile = FarmTile(
+      x: tile.x,
+      y: tile.y,
+      crop: result.kind,
+      density: result.density,
+      stage: TileStage.sown,
+    );
+
+    _setTile(field, tile, newTile);
+
+    _generateSuggestedTasks(
+      cropName: result.kind.label.toLowerCase(),
+      stage: TileStage.sown,
+      stageStartDate: DateTime.now(),
+      fieldId: field.id,
+    );
   }
+
 
 
   void _openCropSheet(FarmField field, FarmTile tile) {
@@ -1085,6 +1073,7 @@ class _LightGridPainter extends CustomPainter {
     }
   }
 
+
   @override
   bool shouldRepaint(covariant _LightGridPainter old) {
     return old.color != color ||
@@ -1095,3 +1084,13 @@ class _LightGridPainter extends CustomPainter {
         old.showDots != showDots;
   }
 }
+class _PlantResult {
+  final CropKind kind;
+  final int density;
+
+  const _PlantResult({
+    required this.kind,
+    required this.density,
+  });
+}
+
