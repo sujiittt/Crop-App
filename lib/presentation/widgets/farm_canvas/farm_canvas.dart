@@ -92,7 +92,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
           tasks.map((t) => _SuggestedTaskItem(task: t)).toList();
     });
 
-    // ✅ SAFE: open AFTER current frame
+    // ✅ Always defer bottom sheet opening
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _showSuggestedTasksSheet();
@@ -288,50 +288,48 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
     if (!allowed) return;
 
-    // ✅ WAIT for result from sheet
-    final result = await showModalBottomSheet<_PlantResult>(
+    showModalBottomSheet(
       context: context,
-      isScrollControlled: false,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      builder: (sheetContext) => PlantTileSheet(
+        onPick: (kind, density) async {
+          // 1️⃣ Close Plant sheet FIRST
+          Navigator.pop(context);
+
+          // 2️⃣ Update tile AFTER closing
+          final newTile = FarmTile(
+            x: tile.x,
+            y: tile.y,
+            crop: kind,
+            density: density,
+            stage: TileStage.sown,
+          );
+
+          _setTile(field, tile, newTile);
+
+          // 3️⃣ Wait for sheet to fully close
+          await Future.delayed(const Duration(milliseconds: 250));
+
+          if (!mounted) return;
+
+          // 4️⃣ NOW show suggested tasks
+          _generateSuggestedTasks(
+            cropName: kind.label.toLowerCase(),
+            stage: TileStage.sown,
+            stageStartDate: DateTime.now(),
+            fieldId: field.id,
+          );
+        },
+
+
+
+        onOpenSoil: () {
+          Navigator.of(sheetContext).pop();
+          Navigator.of(context).pushNamed('/soil-analysis-screen');
+        },
       ),
-      builder: (sheetContext) {
-        return PlantTileSheet(
-          onPick: (kind, density) {
-            Navigator.pop(
-              sheetContext,
-              _PlantResult(kind: kind, density: density),
-            );
-          },
-          onOpenSoil: () {
-            Navigator.pop(sheetContext);
-            Navigator.of(context).pushNamed('/soil-analysis-screen');
-          },
-        );
-      },
-    );
-
-    // 🚫 User cancelled
-    if (result == null) return;
-
-    // ✅ SAFE STATE UPDATE (sheet already closed)
-    final newTile = FarmTile(
-      x: tile.x,
-      y: tile.y,
-      crop: result.kind,
-      density: result.density,
-      stage: TileStage.sown,
-    );
-
-    _setTile(field, tile, newTile);
-
-    _generateSuggestedTasks(
-      cropName: result.kind.label.toLowerCase(),
-      stage: TileStage.sown,
-      stageStartDate: DateTime.now(),
-      fieldId: field.id,
     );
   }
+
 
 
 
