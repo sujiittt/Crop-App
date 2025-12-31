@@ -104,6 +104,9 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
 
   void _showSuggestedTasksSheet() {
+    if (!mounted) return;
+    if (_suggestedTaskItems.isEmpty) return;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -279,7 +282,6 @@ class _FarmCanvasState extends State<FarmCanvas> {
   // ---------- Sheets ----------
   Future<void> _openPlantSheet(FarmField field, FarmTile tile) async {
     final isLoggedIn = await AuthState.instance.isLoggedIn();
-
     final allowed = await AuthGuard.ensureLoggedIn(
       context,
       isLoggedIn: isLoggedIn,
@@ -290,12 +292,14 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
     showModalBottomSheet(
       context: context,
+      isDismissible: true,
+      enableDrag: true,
       builder: (sheetContext) => PlantTileSheet(
         onPick: (kind, density) async {
-          // 1️⃣ Close Plant sheet FIRST
-          Navigator.pop(context);
+          // ✅ CLOSE ONLY THE PLANT SHEET
+          Navigator.of(sheetContext).pop();
 
-          // 2️⃣ Update tile AFTER closing
+          // ✅ Update tile AFTER sheet is closed
           final newTile = FarmTile(
             x: tile.x,
             y: tile.y,
@@ -306,12 +310,11 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
           _setTile(field, tile, newTile);
 
-          // 3️⃣ Wait for sheet to fully close
-          await Future.delayed(const Duration(milliseconds: 250));
-
+          // ✅ Wait for animation + frame settle
+          await Future.delayed(const Duration(milliseconds: 350));
           if (!mounted) return;
 
-          // 4️⃣ NOW show suggested tasks
+          // ✅ NOW show suggested tasks
           _generateSuggestedTasks(
             cropName: kind.label.toLowerCase(),
             stage: TileStage.sown,
@@ -320,8 +323,6 @@ class _FarmCanvasState extends State<FarmCanvas> {
           );
         },
 
-
-
         onOpenSoil: () {
           Navigator.of(sheetContext).pop();
           Navigator.of(context).pushNamed('/soil-analysis-screen');
@@ -329,6 +330,7 @@ class _FarmCanvasState extends State<FarmCanvas> {
       ),
     );
   }
+
 
 
 
@@ -363,22 +365,6 @@ class _FarmCanvasState extends State<FarmCanvas> {
       _openCropSheet(field, tile);
     }
   }
-  void _afterPlantTile({
-    required FarmField field,
-    required FarmTile tile,
-  }) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      _generateSuggestedTasks(
-        cropName: tile.crop!.label.toLowerCase(),
-        stage: tile.stage!,
-        stageStartDate: DateTime.now(),
-        fieldId: field.id,
-      );
-    });
-  }
-
 
   // ---------- Quick-create Add Task (from tile) ----------
   void _openAddTaskFromTile(FarmField field, FarmTile tile) {
