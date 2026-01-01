@@ -19,7 +19,7 @@ import '../../../data/task_storage.dart';
 import '../../../core/auth/auth_guard.dart';
 import '../../../core/auth/auth_state.dart';
 
-
+// this code file takes too much time bcz the error is not going in the app as i just again and again trying to solve it but it is not not going the error in the app.
 class _SuggestedTaskItem {
   final GeneratedTask task;
   bool selected;
