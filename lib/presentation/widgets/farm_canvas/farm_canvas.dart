@@ -292,14 +292,12 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
     showModalBottomSheet(
       context: context,
-      isDismissible: true,
-      enableDrag: true,
       builder: (sheetContext) => PlantTileSheet(
         onPick: (kind, density) async {
-          // ✅ CLOSE ONLY THE PLANT SHEET
+          // ✅ 1. Close ONLY the plant sheet
           Navigator.of(sheetContext).pop();
 
-          // ✅ Update tile AFTER sheet is closed
+          // ✅ 2. Update tile safely
           final newTile = FarmTile(
             x: tile.x,
             y: tile.y,
@@ -310,11 +308,11 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
           _setTile(field, tile, newTile);
 
-          // ✅ Wait for animation + frame settle
-          await Future.delayed(const Duration(milliseconds: 350));
+          // ✅ 3. Let navigation settle
+          await Future.delayed(const Duration(milliseconds: 300));
           if (!mounted) return;
 
-          // ✅ NOW show suggested tasks
+          // ✅ 4. Show suggested tasks
           _generateSuggestedTasks(
             cropName: kind.label.toLowerCase(),
             stage: TileStage.sown,
@@ -329,11 +327,8 @@ class _FarmCanvasState extends State<FarmCanvas> {
         },
       ),
     );
+
   }
-
-
-
-
 
   void _openCropSheet(FarmField field, FarmTile tile) {
     final crop = tile.crop!;
