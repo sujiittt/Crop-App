@@ -294,10 +294,11 @@ class _FarmCanvasState extends State<FarmCanvas> {
       context: context,
       builder: (sheetContext) => PlantTileSheet(
         onPick: (kind, density) async {
-          // ✅ 1. Close ONLY the plant sheet
-          Navigator.of(sheetContext).pop();
 
-          // ✅ 2. Update tile safely
+          // ✅ 1. CLOSE ONLY THE PLANT SHEET
+          Navigator.pop(sheetContext);
+
+          // ✅ 2. UPDATE TILE
           final newTile = FarmTile(
             x: tile.x,
             y: tile.y,
@@ -308,11 +309,12 @@ class _FarmCanvasState extends State<FarmCanvas> {
 
           _setTile(field, tile, newTile);
 
-          // ✅ 3. Let navigation settle
+          // ✅ 3. WAIT FOR SHEET ANIMATION TO FINISH
           await Future.delayed(const Duration(milliseconds: 300));
+
           if (!mounted) return;
 
-          // ✅ 4. Show suggested tasks
+          // ✅ 4. NOW SHOW SUGGESTED TASKS
           _generateSuggestedTasks(
             cropName: kind.label.toLowerCase(),
             stage: TileStage.sown,
@@ -322,11 +324,12 @@ class _FarmCanvasState extends State<FarmCanvas> {
         },
 
         onOpenSoil: () {
-          Navigator.of(sheetContext).pop();
+          Navigator.pop(sheetContext);
           Navigator.of(context).pushNamed('/soil-analysis-screen');
         },
       ),
     );
+
 
   }
 
