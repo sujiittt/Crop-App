@@ -315,12 +315,12 @@ class _FarmCanvasState extends State<FarmCanvas> {
           if (!mounted) return;
 
           // ✅ 4. NOW SHOW SUGGESTED TASKS
-          _generateSuggestedTasks(
-            cropName: kind.label.toLowerCase(),
-            stage: TileStage.sown,
-            stageStartDate: DateTime.now(),
-            fieldId: field.id,
-          );
+          // _generateSuggestedTasks(
+          //   cropName: kind.label.toLowerCase(),
+          //   stage: TileStage.sown,
+          //   stageStartDate: DateTime.now(),
+          //   fieldId: field.id,
+          // );
         },
 
         onOpenSoil: () {
